@@ -29,10 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: Setup .Net ${{  }}
+    - name: Setup .Net ${{ inputs.dotnet-version }}
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: ${{ inputs.dotnet.version }}
+        dotnet-version: ${{ inputs.dotnet-version }}
     - name: Update VersionInfo
       if: inputs.version-info-file != ''
       uses: dolittle/update-version-info-action@v1
