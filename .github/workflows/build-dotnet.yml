@@ -1,0 +1,47 @@
+name: "Build: .Net"
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: 'The working directory'
+        type: string
+        default: '.'
+      next-version:
+        description: 'If the version is known, you can specify it with this'
+        type: string
+        default: ''
+      version-info-file:
+        description: 'The optional path of the VersionInfo file'
+        type: string
+        default: ''
+      build-configuration:
+        description: "The build configuration to use in the dotnet build|test commands. Defaults to 'Release'"
+        type: string
+        default: 'Release'
+      dotnet-version:
+        description: "The dotnet version(s) to setup. Defaults to '7.0.x'"
+        type: string
+        default: '7.0.x'
+   
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Setup .Net ${{  }}
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ inputs.dotnet.version }}
+    - name: Update VersionInfo
+      if: inputs.version-info-file != ''
+      uses: dolittle/update-version-info-action@v1
+      with:
+        version: ${{ inputs.next-version || '0.0.0-prerelease' }}
+        files-to-update: ${{ inputs.version-info-file }}
+    - name: Build
+      working-directory: ${{ inputs.working-directory }}
+      run: dotnet build --configuration ${{ inputs.build-configuration }}
+    - name: Test
+      working-directory: ${{ inputs.working-directory }}
+      run: dotnet test --configuration ${{ inputs.build-configuration }} --no-build
