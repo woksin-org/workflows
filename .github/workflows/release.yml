@@ -1,0 +1,71 @@
+name: Establish Context
+
+on:
+  workflow_call:
+    inputs:
+      prerelease-branches:
+        description: 'The comma-separated list of prerelease branches used'
+        type: string
+        default: ''
+      current-version:
+        description: 'If the version is known, you can specify it with this'
+        type: string
+        default: ''
+      version-file:
+        description: 'If the version is in a file adhering to the expected JSON format, use this'
+        type: string
+        default: ''
+      environment-branch:
+        description: "If you're releasing things on a branch that represents a specific environment, putting the branchname in here will consider any merged pull requests to be a pre-release to it. For instance typical use would be development, testing, staging or similar. This will cause the should-publish output to be set to true. The current-version output will include the version number and a -{branchname} added to it. The output release-type will be set to prerelease."
+        type: string
+        default: ''
+      
+    outputs:
+      should-publish:
+        description: "Is 'true' if this is a release that should be published, 'false' if not"
+        value: ${{ jobs.setup.outputs.should-publish }}
+      pr-body:
+        description: "The pull request body"
+        value: ${{ jobs.setup.outputs.pr-body }}
+      pr-url:
+        description: "The pull request url"
+        value: ${{ jobs.setup.outputs.pr-url }}
+      release-type:
+        description: "The type of the release. Either major, minor, patch or prerelease"
+        value: ${{ jobs.setup.outputs.release-type }}
+      current-version:
+        description: "The current version of the repository derived from the tags or 0.0.0 if there are no version tags"
+        value: ${{ jobs.setup.outputs.current-version }}
+      new-version:
+        description: "The incremented version"
+        value: ${{ jobs.setup.outputs.new-version }}
+      
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      should-publish: ${{ steps.context.outputs.should-publish }}
+      pr-body: ${{ steps.context.outputs.pr-body }}
+      pr-url: ${{ steps.context.outputs.pr-url }}
+      release-type: ${{ steps.context.outputs.release-type }}
+      current-version: ${{ steps.context.outputs.current-version }}
+      next-version: ${{ steps.context.outputs.new-version }}
+    steps:
+    - uses: actions/checkout@v3
+    - name: Establish context
+      id: context
+      uses: woksin-org/establish-context-action@v4
+    - name: Prepend to Changelog
+      if: ${{ steps.context.outputs.should-publish == 'true' && steps.context.outputs.release-type != 'prerelease' }} 
+      uses: woksin-org/add-to-changelog-action@v4
+      with:
+        version: ${{ steps.context.outputs.new-version }}
+        body: ${{ steps.context.outputs.pr-body }}
+        pr-url: ${{ steps.context.outputs.pr-url }}
+    - name: Create GitHub Release
+      if: ${{ steps.context.outputs.should-publish == 'true' }}
+      uses: woksin-org/github-release-action@v3
+      with:
+        version: ${{ steps.context.outputs.new-version }}
+        body: ${{ steps.context.outputs.pr-body }}
+        token: ${{ secrets.BUILD_PAT }}
