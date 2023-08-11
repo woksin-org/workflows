@@ -36,12 +36,12 @@ on:
       current-version:
         description: "The current version of the repository derived from the tags or 0.0.0 if there are no version tags"
         value: ${{ jobs.setup.outputs.current-version }}
-      next-version:
+      new-version:
         description: "The incremented version"
-        value: ${{ jobs.setup.outputs.next-version }}
+        value: ${{ jobs.setup.outputs.new-version }}
       
 jobs:
-  setup:
+  release:
     runs-on: ubuntu-latest
     outputs:
       should-publish: ${{ steps.context.outputs.should-publish }}
@@ -49,21 +49,23 @@ jobs:
       pr-url: ${{ steps.context.outputs.pr-url }}
       release-type: ${{ steps.context.outputs.release-type }}
       current-version: ${{ steps.context.outputs.current-version }}
-      next-version: ${{ steps.increment-version.outputs.next-version }}
+      next-version: ${{ steps.context.outputs.new-version }}
     steps:
     - uses: actions/checkout@v3
     - name: Establish context
       id: context
-      uses: dolittle/establish-context-actin@v2
+      uses: woksin-org/establish-context-action@v4
+    - name: Prepend to Changelog
+      if: ${{ steps.context.outputs.should-publish == 'true' && steps.context.outputs.release-type != 'prerelease' }} 
+      uses: woksin-org/add-to-changelog-action@v4
       with:
-        prerelease-branches: ${{ inputs.prerelease-branches }}
-        current-version: ${{ inputs.current-version }}
-        version-file: ${{ inputs.version-file }}
-        environment-branch: ${{ inputs.environment-branch }}
-    - name: Increment version
-      id: increment-version
+        version: ${{ steps.context.outputs.new-version }}
+        body: ${{ steps.context.outputs.pr-body }}
+        pr-url: ${{ steps.context.outputs.pr-url }}
+    - name: Create GitHub Release
       if: ${{ steps.context.outputs.should-publish == 'true' }}
-      uses: dolittle/increment-version-action@v2
+      uses: woksin-org/github-release-action@v3
       with:
-        version: ${{ steps.context.outputs.current-version }}
-        release-type: ${{ steps.context.outputs.release-type }}
+        version: ${{ steps.context.outputs.new-version }}
+        body: ${{ steps.context.outputs.pr-body }}
+        token: ${{ secrets.BUILD_PAT }}
